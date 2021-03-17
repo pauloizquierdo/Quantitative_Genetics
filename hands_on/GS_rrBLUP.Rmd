@@ -2,6 +2,8 @@
 title: "GS_rrBLUP"
 author: "Paulo"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ### Genome Wide Association
@@ -49,6 +51,7 @@ hist(y, col = "cornflowerblue", breaks = 30,
      main="Yield", xlab = "kg/ha")
 
 pheno <- data.frame(line=1:500,y=y) # get the data frame input ofr the GWA 
+mean(pheno$y)
 
 scores <- GWAS(pheno,geno,plot=F) # run the mixed model
 
@@ -67,10 +70,10 @@ M_qtl1 <- M[1100,] # QTL in marker 1100
 
 fmR1=lm(Y_RA~M_qtl1) # fits a linear model on genotypes (additive effects)
 
-R1A1A1=fmR1$coef[1] #(i.e., the intercept)
-R1A2A2=fmR1$coef[1]+fmR1$coef[2] # Homocygous A2A2, E[X=2]
+A1A1=fmR1$coef[1] #(i.e., the intercept)
+A2A2=fmR1$coef[1]+fmR1$coef[2] # Homocygous A2A2, E[X=2]
 
-exp_values_R1 = matrix(c(R1A1A1, R1A2A2), 
+exp_values_R1 = matrix(c(A1A1, A2A2), 
                        ncol = 2, byrow = T)
 
 colnames(exp_values_R1) = c("aa", "AA")
@@ -80,37 +83,13 @@ exp_values_R1 = as.table(exp_values_R1)
 exp_values_R1 # expected values
 
 
-
 boxplot(Y_RA~M_qtl1, main = "QTL1", # boxplot to compare aa vs AA in position 1100
         col=c("darkolivegreen1", "cornflowerblue")) 
-abline(h=c(4030,4364), col=c("red", "blue"), lty=c(1,2), lwd=c(2, 2))
+abline(h=c(exp_values_R1[1],exp_values_R1[2]), col=c("red", "blue"), lty=c(1,2), lwd=c(2, 2))
 
 
 scoresNew = scores[,-4]
 head(scoresNew)
-scoresNew = scoresNew %>% mutate(
-  pvalue2=pvalue,
-  pvalue3=pvalue,
-  pvalue4=pvalue,
-  pvalue5=pvalue
-  )
-head(scoresNew)
-
-CMplot(scoresNew,plot.type="c", r=1,
-       LOG10=TRUE, col=c("gold","cornflowerblue"),
-       outward=TRUE, cir.chr.h = 0.5,
-       cex = 0.8,
-       threshold=0.000045,
-       threshold.col="green",
-       threshold.lwd=2,
-       amplify=T,signal.col="red",signal.cex=1.2)
-
-
-CMplot(scoresNew,plot.type="q",
-       col="blue",LOG10=TRUE,
-       threshold.col="red",conf.int=TRUE,
-       conf.int.col="orange")
-
 
 ```
 
@@ -502,7 +481,7 @@ boxplot(accuracy, col=c(2:23),
 
 
 
-GS with detected QTL (last 11 QTL)
+GS with detected QTL 
 
 ```{r }
 
@@ -513,6 +492,7 @@ class(phenoGS) # rrBLUP must to be a matrix
 QTL # QTL regions
 dim(markers)
 markers_qtl = markers[,QTL] # select QTL markers
+dim(markers_qtl)
 markers_qtl = markers_qtl[,-1:-11]
 dim(markers_qtl)
 
