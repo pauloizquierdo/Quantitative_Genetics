@@ -1,19 +1,28 @@
 ---
 title: "GS_rrBLUP"
-author: "Paulo"
+author: "Paulo Izquierdo"
 output: html_document
-editor_options: 
-  chunk_output_type: console
 ---
 
-### Genome Wide Association
+### Load packages
 
 ```{r}
+remove(list = ls())
+
 library(rrBLUP)
 library(dplyr)
 library(qqman)
 library(CMplot)
-library(latticeExtra)
+library(ggplot2)
+library(reshape)
+library(grDevices)
+library(RColorBrewer)
+```
+
+
+Genome Wide Association
+
+```{r}
 
 M <- matrix(rep(0,500*1100),1100,500) # matrix of genotypes dimensions
 
@@ -21,19 +30,13 @@ for (i in 1:500) { # fill the genotype matrix
 M[,i] <- ifelse(runif(1100)<0.5,-1,1)
 }
 
-colnames(M) <- 1:500
-MM <- t(M)
-  
-G <- tcrossprod(scale(MM))/ncol(MM)
-levelplot(G, xlab="", ylab="", 
-          main="Kinship")
-
-
 
 geno <- data.frame(SNP=1:1100, # create the data frame with chromosomes
                    Chromosome=rep(1:11,each=100),
                    Position=rep(1:100, times=11),
                    M,check.names=FALSE)
+
+geno[1090:1100,1:5]
 
 QTL <- 55 * (1:20) #pick QTL
 length(QTL)
@@ -51,71 +54,28 @@ hist(y, col = "cornflowerblue", breaks = 30,
      main="Yield", xlab = "kg/ha")
 
 pheno <- data.frame(line=1:500,y=y) # get the data frame input ofr the GWA 
-mean(pheno$y)
-
-scores <- GWAS(pheno,geno,plot=F) # run the mixed model
-
-scores = scores %>% mutate(pvalue= 10^-y) # transform the -log10 to pvalue
-
-manhattan(scores, main = "Manhattan plot", # manhattan plot 
-          chr="Chromosome",
-          bp="Position", snp="SNP", p="pvalue", 
-          highlight = QTL, col = c("blue4", "orange3"),
-          suggestiveline = F, 
-          genomewideline = -log10(0.05/1100),
-          cex = 0.6)
-
-Y_RA <- pheno[,2] # phenotype to estimate marker effect
-M_qtl1 <- M[1100,] # QTL in marker 1100
-
-fmR1=lm(Y_RA~M_qtl1) # fits a linear model on genotypes (additive effects)
-
-A1A1=fmR1$coef[1] #(i.e., the intercept)
-A2A2=fmR1$coef[1]+fmR1$coef[2] # Homocygous A2A2, E[X=2]
-
-exp_values_R1 = matrix(c(A1A1, A2A2), 
-                       ncol = 2, byrow = T)
-
-colnames(exp_values_R1) = c("aa", "AA")
-row.names(exp_values_R1) = c("QTL1")
-
-exp_values_R1 = as.table(exp_values_R1)
-exp_values_R1 # expected values
-
-
-boxplot(Y_RA~M_qtl1, main = "QTL1", # boxplot to compare aa vs AA in position 1100
-        col=c("darkolivegreen1", "cornflowerblue")) 
-abline(h=c(exp_values_R1[1],exp_values_R1[2]), col=c("red", "blue"), lty=c(1,2), lwd=c(2, 2))
-
-
-scoresNew = scores[,-4]
-head(scoresNew)
 
 ```
-
-
 
 
 ### Genomic Selection Random & Fixed variables
 
 ```{r warning=F, warning=F}
-library(ggplot2)
-require(rrBLUP)
-library(reshape)
 
-phenoGS = scale(pheno[,2])
-plot(phenoGS)
-plot(pheno[,2])
+phenoGS <- scale(pheno[,2]) # sacale data (subtract the mean and divide by sd). This could help to increase the prediction accuracy
 
 dim(M) # M is the markers Matrix
-class(M)
-markers = t(M) # M and pheno must to have the same dim
+dim(phenoGS) # number of rows must be equal with M
+
+markers <- t(M) # Transpose of M
 dim(markers) # 500 Inv and 1100 markers
 dim(phenoGS)
 
 QTL # QTL positions
 u[QTL] # QTL effects
-indexQTL1 = 1100
+
+# Objects with QTL positions in the genome to use them as fixed variables
+indexQTL1 = 1100 
 indexQTL2 = c(1045, 1100)
 indexQTL3 = c(990, 1045, 1100)
 indexQTL4 = c(935 , 990, 1045, 1100)
@@ -136,8 +96,8 @@ indexQTL18 = c(165, 220, 275, 330,385, 440, 495, 550, 605, 660, 715, 770, 825 ,8
 indexQTL19 = c(110, 165, 220, 275, 330, 385, 440, 495, 550, 605, 660, 715, 770, 825 ,880, 935, 990, 1045, 1100)
 indexQTL20 = c(55, 110, 165, 220, 275, 330, 385, 440, 495, 550, 605, 660, 715, 770, 825 ,880, 935, 990, 1045, 1100)
 
-
-markersNoQTL1 = markers[,-indexQTL1] # exclude fixed variables
+# Exclude fixed variables for each data set
+markersNoQTL1 = markers[,-indexQTL1] 
 markersNoQTL2 = markers[,-indexQTL2]
 markersNoQTL3 = markers[,-indexQTL3]
 markersNoQTL4 = markers[,-indexQTL4]
@@ -158,7 +118,8 @@ markersNoQTL18 = markers[,-indexQTL18]
 markersNoQTL19 = markers[,-indexQTL19]
 markersNoQTL20 = markers[,-indexQTL20]
 
-bQTL1 = as.matrix(markers[,indexQTL1]) # fixed variables
+# Now we need to create the matrix with the fixed variables for each data set
+bQTL1 = as.matrix(markers[,indexQTL1]) 
 bQTL2 = as.matrix(markers[,indexQTL2])
 bQTL3 = as.matrix(markers[,indexQTL3])
 bQTL4 = as.matrix(markers[,indexQTL4])
@@ -178,17 +139,19 @@ bQTL17 = as.matrix(markers[,indexQTL17])
 bQTL18 = as.matrix(markers[,indexQTL18])
 bQTL19 = as.matrix(markers[,indexQTL19])
 bQTL20 = as.matrix(markers[,indexQTL20])
+head(bQTL20)
 
-cycles=10 # number of cycles to repeat
-accuracy= matrix(nrow = cycles, ncol=21) # empty matrix to store results
+cycles = 10 # number of cycles 
+accuracy = matrix(nrow = cycles, ncol=21) # empty matrix to store results
 
 for(r in 1:cycles) 
   { # open loop to run GP model
-set.seed(r*1000)
 train = as.matrix(sample(1:500, 250)) # select 250 lines to train the model
-test = setdiff(1:500, train) #select remanider samples to validate the model
+test = setdiff(1:500, train) #select remainder samples to validate the model
 
-yTRN  = phenoGS[train,] # select 350 lines to train the model
+yTRN  = phenoGS[train,] # select 250 lines to train the model
+
+# extract samples in the training population for each data set of markers
 xTRN = markers[train,]
 x1TRN = markersNoQTL1[train,]
 x2TRN = markersNoQTL2[train,]
@@ -211,49 +174,55 @@ x18TRN = markersNoQTL18[train,]
 x19TRN = markersNoQTL19[train,]
 x20TRN = markersNoQTL20[train,]
 
+# extract samples in the training population for each data set of fixed variables
 bTRN1 = bQTL1[train, ,drop=F]
-bTST1 = bQTL1[test, ,drop=F]
 bTRN2 = bQTL2[train, ,drop=F]
-bTST2 = bQTL2[test, ,drop=F]
 bTRN3 = bQTL3[train, ,drop=F]
-bTST3 = bQTL3[test, ,drop=F]
 bTRN4 = bQTL4[train, ,drop=F]
-bTST4 = bQTL4[test, ,drop=F]
 bTRN5 = bQTL5[train, ,drop=F]
-bTST5 = bQTL5[test, ,drop=F]
 bTRN6 = bQTL6[train, ,drop=F]
-bTST6 = bQTL6[test, ,drop=F]
 bTRN7 = bQTL7[train, ,drop=F]
-bTST7 = bQTL7[test, ,drop=F]
 bTRN8 = bQTL8[train, ,drop=F]
-bTST8 = bQTL8[test, ,drop=F]
 bTRN9 = bQTL9[train, ,drop=F]
-bTST9 = bQTL9[test, ,drop=F]
 bTRN10 = bQTL10[train, ,drop=F]
-bTST10 = bQTL10[test, ,drop=F]
 bTRN11 = bQTL11[train, ,drop=F]
-bTST11 = bQTL11[test, ,drop=F]
 bTRN12 = bQTL12[train, ,drop=F]
-bTST12 = bQTL12[test, ,drop=F]
 bTRN13 = bQTL13[train, ,drop=F]
-bTST13 = bQTL13[test, ,drop=F]
 bTRN14 = bQTL14[train, ,drop=F]
-bTST14 = bQTL14[test, ,drop=F]
 bTRN15 = bQTL15[train, ,drop=F]
-bTST15 = bQTL15[test, ,drop=F]
 bTRN16 = bQTL16[train, ,drop=F]
-bTST16 = bQTL16[test, ,drop=F]
 bTRN17 = bQTL17[train, ,drop=F]
-bTST17 = bQTL17[test, ,drop=F]
 bTRN18 = bQTL18[train, ,drop=F]
-bTST18 = bQTL18[test, ,drop=F]
 bTRN19 = bQTL19[train, ,drop=F]
-bTST19 = bQTL19[test, ,drop=F]
 bTRN20 = bQTL20[train, ,drop=F]
+
+# extract samples in the testing population for each data set of fixed variables
+
+bTST1 = bQTL1[test, ,drop=F]
+bTST2 = bQTL2[test, ,drop=F]
+bTST3 = bQTL3[test, ,drop=F]
+bTST4 = bQTL4[test, ,drop=F]
+bTST5 = bQTL5[test, ,drop=F]
+bTST6 = bQTL6[test, ,drop=F]
+bTST7 = bQTL7[test, ,drop=F]
+bTST8 = bQTL8[test, ,drop=F]
+bTST9 = bQTL9[test, ,drop=F]
+bTST10 = bQTL10[test, ,drop=F]
+bTST11 = bQTL11[test, ,drop=F]
+bTST12 = bQTL12[test, ,drop=F]
+bTST13 = bQTL13[test, ,drop=F]
+bTST14 = bQTL14[test, ,drop=F]
+bTST15 = bQTL15[test, ,drop=F]
+bTST16 = bQTL16[test, ,drop=F]
+bTST17 = bQTL17[test, ,drop=F]
+bTST18 = bQTL18[test, ,drop=F]
+bTST19 = bQTL19[test, ,drop=F]
 bTST20= bQTL20[test, ,drop=F]
 
 
-yTST  = phenoGS[test,] # select remanider samples to validate the model
+yTST  = phenoGS[test,] # select remainder samples to validate the model in the testing population
+
+# extract samples in the testing population for each data set of markers
 xTST = markers[test,]
 x1TST = markersNoQTL1[test,]
 x2TST = markersNoQTL2[test,]
@@ -276,124 +245,83 @@ x18TST = markersNoQTL18[test,]
 x19TST = markersNoQTL19[test,]
 x20TST = markersNoQTL20[test,]
 
-yNA = phenoGS
-yNA[test] <- NA
+yNA = phenoGS # phenotype 
+yNA[test] <- NA # data in testing pop will be "NA"
 
-# rrBLUP package (Hendelman)
-fmGS0 = mixed.solve(yTRN, # only random effects (R)
-                    Z=xTRN, 
-                    K=NULL,
-                    SE= F,
-                    return.Hinv = F)
+# rrBLUP package
+fmGS0 = mixed.solve(yTRN, # only random effects
+                    Z=xTRN)
 
-fmGS1 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+fmGS1 = mixed.solve(yTRN, # QTL fixed  + random (1 QTL)
                     X=bTRN1, 
-                    Z=x1TRN, 
-                    SE= F, 
-                    return.Hinv = F)
+                    Z=x1TRN)
 
-fmGS2 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+fmGS2 = mixed.solve(yTRN, # QTL fixed  + random (2 QTL)
                     X=bTRN2, 
-                    Z=x2TRN, 
-                    SE= F, 
-                    return.Hinv = F)
+                    Z=x2TRN)
 
-fmGS3 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+fmGS3 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN3, 
-                    Z=x3TRN, 
-                    SE= F, 
-                    return.Hinv = F)
+                    Z=x3TRN)
 
-fmGS4 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+fmGS4 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN4, 
-                    Z=x4TRN, 
-                    SE= F, 
-                    return.Hinv = F)
+                    Z=x4TRN)
 
-fmGS5 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+fmGS5 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN5, 
-                    Z=x5TRN, 
-                    SE= F, 
-                    return.Hinv = F)
+                    Z=x5TRN)
 
-fmGS6 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+fmGS6 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN6, 
-                    Z=x6TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS7 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x6TRN)
+fmGS7 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN7, 
-                    Z=x7TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS8 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x7TRN)
+fmGS8 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN8, 
-                    Z=x8TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS9 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x8TRN)
+fmGS9 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN9, 
-                    Z=x9TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS10 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x9TRN)
+fmGS10 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN10, 
-                    Z=x10TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS11 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x10TRN)
+fmGS11 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN11, 
-                    Z=x11TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS12 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x11TRN)
+fmGS12 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN12, 
-                    Z=x12TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS13 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x12TRN)
+fmGS13 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN13, 
-                    Z=x13TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS14 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x13TRN)
+fmGS14 = mixed.solve(yTRN, # QTL fixed  + random
                     X=bTRN14, 
-                    Z=x14TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS15 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x14TRN)
+fmGS15 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN15, 
-                    Z=x15TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS16 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x15TRN)
+fmGS16 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN16, 
-                    Z=x16TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS17 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x16TRN)
+fmGS17 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN17, 
-                    Z=x17TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS18 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x17TRN)
+fmGS18 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN18, 
-                    Z=x18TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS19 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x18TRN)
+fmGS19 = mixed.solve(yTRN, # QTL fixed  + random 
                     X=bTRN19, 
-                    Z=x19TRN, 
-                    SE= F, 
-                    return.Hinv = F)
-fmGS20 = mixed.solve(yTRN, # QTL fixed  + random (QTL+R)
+                    Z=x19TRN)
+fmGS20 = mixed.solve(yTRN, # QTL fixed  + random (20 QTL)
                     X=bTRN20, 
-                    Z=x20TRN, 
-                    SE= F, 
-                    return.Hinv = F)
+                    Z=x20TRN)
 
-yHat0 = xTST %*% fmGS0$u  # Predicted value (R)
-yHat1 = (bTST1 %*% fmGS1$beta) + (x1TST %*% fmGS1$u) # Predicted value (QTL + R)
+yHat0 = xTST %*% fmGS0$u  # Predicted genetic value
+
+# Predicted value with fixed variables 
+yHat1 = (bTST1 %*% fmGS1$beta) + (x1TST %*% fmGS1$u) 
 yHat2 = (bTST2 %*% fmGS2$beta) + (x2TST %*% fmGS2$u)
 yHat3 = (bTST3 %*% fmGS3$beta) + (x3TST %*% fmGS3$u)
 yHat4 = (bTST4 %*% fmGS4$beta) + (x4TST %*% fmGS4$u)
@@ -414,7 +342,8 @@ yHat18 = (bTST18 %*% fmGS18$beta) + (x18TST %*% fmGS18$u)
 yHat19 = (bTST19 %*% fmGS19$beta) + (x19TST %*% fmGS19$u)
 yHat20 = (bTST20 %*% fmGS20$beta) + (x20TST %*% fmGS20$u)
 
-accuracy[r,1] = cor(yHat0, yTST, use = "complete" ) # store the correlation of each cycle
+# store the correlation of each cycle
+accuracy[r,1] = cor(yHat0, yTST, use = "complete" ) 
 accuracy[r,2] = cor(yHat1, yTST, use = "complete" )
 accuracy[r,3] = cor(yHat2, yTST, use = "complete" )
 accuracy[r,4] = cor(yHat3, yTST, use = "complete" )
@@ -438,11 +367,6 @@ accuracy[r,21] = cor(yHat20, yTST, use = "complete" )
 }
 
 apply(accuracy,2,mean) # mean accuracy of cycles
-dim(accuracy)
-
-plot(fmGS1$u, main = "Marker effect") # plot markers effects
-abline(v=QTL, col="red")  # add lines in QTL positions
-
 
 predGS0 <- data.frame(yTST, yHat0) # create the data frame input for GP plot
 
@@ -454,25 +378,11 @@ p_GS0 <- ggplot(predGS0,
 p_GS0
 
 
-predGS1 <- data.frame(yTST, yHat1) # create the data frame input for GP plot
-
-p_GS1 <- ggplot(predGS1, 
-               aes(x=yHat1, y=yTST)) +
-  geom_point() +
-  geom_smooth(method=lm , color="red", fill="#69b3a2", se=TRUE) 
-
-p_GS1
-
-
-
-
 colnames(accuracy) = c("0", "1","2", "3", "4", "5",
                        "6","7","8","9","10",
                     "11","12","13","14","15",
                     "16","17","18","19","20")
-library(grDevices)
-library(RColorBrewer)
-coul <- colorRampPalette(brewer.pal(10, "Spectral"))
+
 boxplot(accuracy, col=c(2:23), 
         ylab= "Accuracy",
         xlab= "Fixed QTL", cex.axis=0.8)
@@ -481,19 +391,12 @@ boxplot(accuracy, col=c(2:23),
 
 
 
-GS with detected QTL 
+GS only with QTLs
 
 ```{r }
 
-library(ggplot2)
-
-class(phenoGS) # rrBLUP must to be a matrix
-
 QTL # QTL regions
-dim(markers)
 markers_qtl = markers[,QTL] # select QTL markers
-dim(markers_qtl)
-markers_qtl = markers_qtl[,-1:-11]
 dim(markers_qtl)
 
 traits=1
@@ -509,7 +412,6 @@ marker_train_gq = markers_qtl[train,]
 
 pheno_valid_gq  = phenoGS[test,]
 marker_valid_gq = markers_qtl[test,]
-
 
 yield_answer_gq = mixed.solve(pheno_train_gq, 
                            Z=marker_train_gq,
@@ -528,8 +430,6 @@ accuracy2[r,1] = cor(pred_yield_gq,
 }
 
 mean(accuracy2)
-
-plot(e_q, main = "Marker effect QTL")
 
 pred2 <- data.frame(pheno_valid_gq, pred_yield_gq)
 

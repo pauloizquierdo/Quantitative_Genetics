@@ -1,68 +1,89 @@
 ---
 title: "Multiple_allele"
-author: "Paulo"
+author: "Paulo Izquierdo"
 date: "3/7/2021"
 output: html_document
 editor_options: 
   chunk_output_type: console
 ---
 
-### Genome Wide Association
+### load packages
 
 ```{r}
-library(rrBLUP)
-library(dplyr)
-library(qqman)
-library(CMplot)
-library(latticeExtra)
+remove(list=ls())
+# install.packages("rrBLUP")
+# install.packages("dplyr")
+# install.packages("qqman")
+# install.packages("CMplot")
+library(rrBLUP) # GS ans GWAS
+library(dplyr) # organize data
+library(qqman) # Manhattan plots
+library(CMplot) # Circus plot
 
-M <- matrix(rep(0,500*1100),1100,500) # matrix of genotypes dimensions
+```
+
+
+Genotype
+
+```{r}
+# M <- matrix(rep(0,500*1100),1100,500) 
+M <- matrix(0,1100,500) # matrix of genotypes dimensions
+dim(M)
 
 for (i in 1:500) { # fill the genotype matrix
 M[,i] <- ifelse(runif(1100)<0.5,-1,1)
 }
 
+M[1:5,1:5]
+
 colnames(M) <- 1:500
-MM <- t(M)
-  
-G <- tcrossprod(scale(MM))/ncol(MM)
-levelplot(G, xlab="", ylab="", 
-          main="Kinship")
-
-
+M[1:5,1:5]
 
 geno <- data.frame(SNP=1:1100, # create the data frame with chromosomes
                    Chromosome=rep(1:11,each=100),
                    Position=rep(1:100, times=11),
                    M,check.names=FALSE)
 
+geno[1:5,1:10]
+
 QTL <- 55 * (1:20) #pick QTL
 length(QTL)
 u <- rep(0,1100) 
+str(u)
+
 u[QTL] <- c(20,	40,	60,	80,	100, #marker effects
             120,	140,	160,	180, 
             200,	220,	240,	260, 
             280,	300,	320, 340,	
             360, 380,400)
+
+
 g <- as.vector(crossprod(M,u)) # get the cross product between Markers and marker effects
+
 h2 <- 0.6 # heritability
+
 y <- g + rnorm(500,mean=4000,sd=sqrt((1-h2)/h2*var(g))) # phenotype in a random distribution on 500 samples  with  the mean and sd desired
 
 hist(y, col = "cornflowerblue", breaks = 30, 
      main="Yield", xlab = "kg/ha")
 
-pheno <- data.frame(line=1:500,y=y) # get the data frame input ofr the GWA 
+pheno <- data.frame(RIL=1:500,Yield=y) # get the data frame input for the GWA 
+head(pheno)
 
 scores <- GWAS(pheno,geno,plot=F) # run the mixed model
+head(scores)
 
-scores = scores %>% mutate(pvalue= 10^-y) # transform the -log10 to pvalue
+scores <- scores %>% mutate(pvalue= 10^-Yield) # transform the -log10 to pvalue
+
+head(scores)
 
 manhattan(scores, main = "Manhattan plot", # manhattan plot 
           chr="Chromosome",
           bp="Position", snp="SNP", p="pvalue", 
-          highlight = QTL, col = c("blue4", "orange3"),
+          highlight = QTL, 
+          col = c("blue4", "orange3"),
           suggestiveline = F, 
-          genomewideline = -log10(0.05/1100),
+          genomewideline = -log10(0.05/1100), # Bonferroni
           cex = 0.6)
 
 Y_RA <- pheno[,2] # phenotype to estimate marker effect
@@ -70,10 +91,10 @@ M_qtl1 <- M[1100,] # QTL in marker 1100
 
 fmR1=lm(Y_RA~M_qtl1) # fits a linear model on genotypes (additive effects)
 
-A1A1=fmR1$coef[1] #(i.e., the intercept)
-A2A2=fmR1$coef[1]+fmR1$coef[2] # Homocygous A2A2, E[X=2]
+R1A1A1=fmR1$coef[1] #(i.e., the intercept)
+R1A2A2=fmR1$coef[1]+fmR1$coef[2] # Homocygous A2A2, E[X=2]
 
-exp_values_R1 = matrix(c(A1A1, A2A2), 
+exp_values_R1 = matrix(c(R1A1A1, R1A2A2), 
                        ncol = 2, byrow = T)
 
 colnames(exp_values_R1) = c("aa", "AA")
@@ -83,33 +104,24 @@ exp_values_R1 = as.table(exp_values_R1)
 exp_values_R1 # expected values
 
 
-
 boxplot(Y_RA~M_qtl1, main = "QTL1", # boxplot to compare aa vs AA in position 1100
         col=c("darkolivegreen1", "cornflowerblue")) 
-abline(h=c(exp_values_R1[1],exp_values_R1[2]), col=c("red", "blue"), lty=c(1,2), lwd=c(2, 2))
+abline(h=c(R1A1A1,R1A2A2), col=c("red", "blue"), lty=c(1,2), lwd=c(2, 2))
 
 
-scoresNew = scores[,-4]
-head(scoresNew)
-#scoresNew = scoresNew %>% mutate(
- # pvalue2=pvalue,
- #  pvalue3=pvalue,
- # pvalue4=pvalue,
- # pvalue5=pvalue
- # )
-# head(scoresNew)
+scoresNew <- scores[,-4] # remove column 4 with -log(pvalues)
 
-CMplot(scoresNew,plot.type="c", r=1,
+CMplot(scoresNew,plot.type="c", r=1, # Circus plot
        LOG10=TRUE, col=c("gold","cornflowerblue"),
        outward=TRUE, cir.chr.h = 0.5,
        cex = 0.8,
-       threshold=0.000045,
+       threshold=0.000045, # Bonferroni
        threshold.col="green",
        threshold.lwd=2,
        amplify=T,signal.col="red",signal.cex=1.2)
 
 
-CMplot(scoresNew,plot.type="q",
+CMplot(scoresNew,plot.type="q", # qqplots
        col="blue",LOG10=TRUE,
        threshold.col="red",conf.int=TRUE,
        conf.int.col="orange")
