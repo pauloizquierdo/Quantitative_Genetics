@@ -1,4 +1,4 @@
-# QuantitativeGenetics
+# Quantitative Genetics workshop - Innovation Lab for Crop Improvement, QuickWin project
 
 Course description
 Textbook and other supporting materials
