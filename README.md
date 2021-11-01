@@ -1,5 +1,7 @@
 # Quantitative Genetics workshop - Innovation Lab for Crop Improvement, QuickWin project
 
+https://pauloizquierdo.github.io/QuantitativeGenetics/
+
 Course description
 Textbook and other supporting materials
 
