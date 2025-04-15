@@ -1,6 +1,6 @@
 # Quantitative Genetics Workshop  
 **Innovation Lab for Crop Improvement – QuickWin Project**  
-📚 [Workshop Website](https://pauloizquierdo.github.io/QuantitativeGenetics/)
+📚 [Workshop Website](https://pauloizquierdo.github.io/Quantitative_Genetics/)
 
 ---
 
@@ -31,7 +31,7 @@ The workshop draws from the following textbooks:
 - *Introduction to Genetic Analysis* (10th Edition) by Griffiths, Wessler, Carroll & Doebley  
 
 Additional materials (lecture slides, videos, and R code) are available at:  
-👉 [https://pauloizquierdo.github.io/QuantitativeGenetics/](https://pauloizquierdo.github.io/QuantitativeGenetics/)
+👉 [https://pauloizquierdo.github.io/QuantitativeGenetics/](https://pauloizquierdo.github.io/Quantitative_Genetics/)
 
 ---
 
@@ -67,5 +67,5 @@ This workshop is supported by the **Innovation Lab for Crop Improvement (ILCI)**
 
 ---
 
-For questions or contributions, please contact the workshop coordinator via the [website](https://pauloizquierdo.github.io/QuantitativeGenetics/).
+For questions or contributions, please contact the workshop coordinator via the [website](https://pauloizquierdo.github.io/Quantitative_Genetics/).
 
