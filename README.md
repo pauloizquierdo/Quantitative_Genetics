@@ -67,5 +67,5 @@ This workshop is supported by the **Innovation Lab for Crop Improvement (ILCI)**
 
 ---
 
-For questions or contributions, please contact the workshop coordinator via the [website](https://pauloizquierdo.github.io/Quantitative_Genetics/).
+For questions or contributions, please contact the workshop instructor via the [website](https://pauloizquierdo.github.io/Quantitative_Genetics/).
 
